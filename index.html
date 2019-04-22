@@ -1,0 +1,687 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<title>Dokument bez tytułu</title>
+<style>
+body
+{
+margin:0px;
+padding:0px;
+display:flex;
+align-items:center;
+justify-content:center;
+height:100vh;
+background-color:darkgray;
+}
+</style>
+</head>
+
+<body>
+<canvas id="canvas"></canvas>
+<script>
+const canvasElem = document.getElementById('canvas');
+const ctx = canvasElem.getContext('2d');  
+canvas.width = 500;
+canvas.height= 700;
+    
+    const mapa=new Image()//mapa.src="mapa.png" ładuje plik z obrazem
+    
+    mapa.addEventListener("load",background)// gdy zostanie załadowany rysuje background gry
+    
+    ctx.beginPath()
+    ctx.fillStyle="white"
+    ctx.fillRect(0,0,canvas.width,canvas.height)
+    ctx.fill()
+    
+    var mnoznik=[1,0.5,2,0.5]//[0]=vtratwa* ; [1]=vtratwa+ ; [2]=vsamochod* ;[3]=vsamochod+  Wartości szybkości objektów
+    
+    var delayTRATWY=700//co ile wyskoczy tratwa
+    var delaySAMOCHODY=1300//co ile wyskoczy samohcod
+    
+    var pucharX=25//zmienna która pomaga zdefiniować x puchara (dodawać do niej wartość by puchary  były na rużnej wysokości X)
+    var sprawdzanie=false//sprawdzanie czy żaba jest na tratwie
+    var pomocnik=false//sprawdzanie czy żaba jest na tratwie
+    
+    var iloscPuchar=5//ilość pucharów w rzędzie
+    
+    var Ttratwa=[]//tablica na tratwy
+    var Tsamochody=[]//tablica na samochody
+    var Tpuchary=[]//tablica na puchary
+    
+    var Npojazd=[0,50,100,150,200,250,300,400,500]//współrzędne samochodów na obrazku
+    
+    var delayA=true
+    var czas=3
+    document.addEventListener("keydown",function(event)//Ważne nadsłuchiwanie zdarzeń
+    {
+    switch (event.keyCode) 
+    {
+    case 37:ruch_zaba(37); break;//włączanie zmiennej po kliknięciu przycisku
+    case 38:ruch_zaba(38); break;//góra
+    case 39:ruch_zaba(39); break;//prawo
+    case 40:ruch_zaba(40); break;//duł
+    case 32:{}; break;//spacja 
+    }   
+})
+
+
+    
+    
+    var klocek=//typowy klocek odpowiada za szerokość i wysokość typowego obiektu np trawa 
+        {
+            width:50,
+            height:50,
+        }
+    
+    var first_line=//pierwszy rząd od góry czarna kostka
+        {
+            startX:50,
+            startY:0,
+            X:0,
+            Y:0,
+        }
+    var woda=
+        {
+            X:0,
+            Y:klocek.height,//klocek to typowa szerokość jednej linni  
+            startX:300,//startX i Y to współrzędne grafiki dla danego obiektu
+            startY:0,
+        }
+    var trawa=
+        {
+            X:0,
+            Y:klocek.height*4,//klocek to typowa szerokość jednej linni mnożony daje odpowiednią wartość Y
+            startX:250,
+            startY:0,
+        }
+    var kostkaS=
+        {
+            X:0,
+            Y:klocek.height*6,
+            startX:50,
+            startY:0, 
+        }
+    var szosa=
+        {
+            X:0,
+            Y_1:klocek.height*7,
+            Y_2:klocek.height*8,
+            Y_3:klocek.height*9,
+            Y_4:klocek.height*10,
+             startY:0,
+            
+            startX_1:150,//startX i Y to współrzędne grafiki dla danego obiektu
+            startX_2:200,
+            startX_3:100,
+        }
+ var kostkaC=
+        {
+            X:0,
+            Y:klocek.height*11,
+            startX:0,//startX i Y to współrzędne grafiki dla danego obiektu
+            startY:0, 
+        }
+ 
+ var zaba=
+     {
+         zabka_width:25,
+         zabka_height:25,
+         startX:0,
+         startY:100,//startX i Y to współrzędne grafiki dla danego obiektu
+         X:canvas.width-klocek.width,
+         Y:canvas.height-klocek.height,
+
+     }
+
+ 
+ //########tworze puchary#########////////
+ var puchary=function()
+ {// uwaga zmienna puchry jest odpalana na początku gry tylko raz definiuje ona puchary oraz ustawia ponownie startowe wartości najważniejszych zminnych po kolizji
+     Tpuchary=[]//czyszcze tablice
+     delayTRATWY=700
+     delaySAMOCHODY=1300
+     Npojazd=[0,50,100,150,200,250,300,400,500]
+    pucharX=25
+     mnoznik=[1,0.5,2,0.5]
+     for(Y=0;Y<iloscPuchar;Y++)//pętla która ma za zadanie rozstawić puchary co 100
+         {
+    var  pucharki=
+     {
+         width:25,
+         height:25,
+         startX:50,
+         startY:100,
+         X:pucharX,
+         Y:25,
+         nastepny_puchar:100,
+     } 
+        Tpuchary.push(pucharki)//tu dodaje obiekt do tablicy
+         pucharX+=pucharki.nastepny_puchar  //tu rozstawiam       
+    }  
+ }
+ 
+ 
+ 
+ //########tworze nowy samochod###########////////
+ var nowysamochod=function()
+ {
+    var samochod=
+        {   
+        startX:0,
+        startY:50,
+        X:0,
+        Y_1:klocek.height*7,
+        Y_2:klocek.height*8,
+        Y_3:klocek.height*9,
+        Y_4:klocek.height*10,
+        los_line:Math.floor(Math.random()*4),//losuje linie na której będzie jechał samochod
+        numerS:Math.floor(Math.random()*3),//losuje samochod
+        kierunek:(Math.random()>0.5)?"right":"left",//losuje kierunek 50/50,
+        velX:(Math.random()*mnoznik[2])+mnoznik[3],//podaje prędkość minimalną (mnoznik[3])
+        first:true,//wartość ta  służy do ustawienia samochodu po prawej stronie gdy zostanie wylosowany kierunek "left" wtedy X.samochodu ma canvas.width i już spowrotem nie otszyma tej wartości    
+        }
+    Tsamochody.push(samochod)//dodaje samochod do tablicy
+ }
+ 
+ //########tworze nową deske###########////////
+ var nowadeska=function()//Analogicznie co do samochodu
+ {
+ var tratwa=
+     {
+        X:-canvas.width,
+         los_line:Math.floor(Math.random()*3),
+         startX:350,
+         startY:0, 
+         velX:(Math.random()*mnoznik[0])+mnoznik[1],
+         kierunek:(Math.random()>0.5)?"right":"left",
+          first:true,  
+     }
+    Ttratwa.push(tratwa)
+     
+ }
+ 
+ 
+ 
+ 
+ var rysuje=function()
+ {
+//########Sprawdzam tablice TRATWA i rysuje##########//
+     Ttratwa.forEach(function(tratwa,W)
+                    {
+         
+         if(tratwa.los_line==0)//sprawdzam na której linni ma powstać
+             {
+            tratwa.Y_1=klocek.height
+             }
+         if(tratwa.los_line==1)
+             {
+               tratwa.Y_1=klocek.height*2
+             }
+         if(tratwa.los_line==2)
+             {
+               tratwa.Y_1=klocek.height*3  
+             }
+         if(tratwa.kierunek=="left")//sprawdzam jego kierunek
+            {
+              if(tratwa.first==true)//gdy jest kierunek left ustawiam jedyny raz wartość canvas.width 
+                  {
+            tratwa.X=canvas.width
+                tratwa.first=false
+                  }
+            }
+         if(tratwa.X<-klocek.width&&tratwa.kierunek=="left")//gdy wyleci po za mape
+             {
+                 Ttratwa.splice(W,1)//usuwam obiekt z tablicy pod numerem "W" 1-to liczba elementów tablicy do usunięcia
+             }
+        
+         if(tratwa.X>canvas.width+klocek.width&&tratwa.kierunek=="right")
+             {
+                 Ttratwa.splice(W,1)
+             }
+         
+         
+ctx.drawImage(mapa,tratwa.startX,tratwa.startY,klocek.width,klocek.height,tratwa.X,tratwa.Y_1,klocek.width,klocek.height)      
+     })
+  
+  //########Sprawdzam tablice SAMOCHOD i rysuje##########//       
+              Tsamochody.forEach(function(samochod,C)
+                    {
+         if(samochod.los_line==0)//sprawdzam na której lini ma powstać
+             {
+            samochod.Y_1=klocek.height*7
+             }
+         if(samochod.los_line==1)
+             {
+               samochod.Y_1=klocek.height*8
+             }
+         if(samochod.los_line==2)
+             {
+               samochod.Y_1=klocek.height*9  
+             }
+         if(samochod.los_line==3)
+             {
+               samochod.Y_1=klocek.height*10 
+             }
+         
+        if(samochod.kierunek=="right")//gdy kierunek w strone prawom podstawiam odpowiedni samochod 
+              {
+               if(samochod.numerS==0)
+                {
+                    samochod.startX=50;
+                }
+                  if(samochod.numerS==1)
+                {
+                    samochod.startX=150;
+                }
+                  if(samochod.numerS==2)
+                {
+                    samochod.startX=250;
+                }
+              }
+        if(samochod.kierunek=="left")
+              {
+               if(samochod.numerS==0)
+                {
+                    samochod.startX=0;
+                }
+                  if(samochod.numerS==1)
+                {
+                    samochod.startX=100;
+                }
+                  if(samochod.numerS==2)
+                {
+                    samochod.startX=200;
+                }
+                if(samochod.first==true)//ustawiam obiekt po prawej stronie żeby mugł lecieć do lewej strony
+                    {
+                    samochod.X=canvas.width
+                    samochod.first=false
+                    }
+              }
+                  if(samochod.X<-klocek.width&&samochod.kierunek=="left")//gdy wyleci za mape usuwam go
+             {
+                 Tsamochody.splice(C,1)
+             }
+        
+         if(samochod.X>canvas.width+klocek.width&&samochod.kierunek=="right")
+             {
+                 Tsamochody.splice(C,1)
+             } 
+       
+         
+ctx.drawImage(mapa,samochod.startX,samochod.startY,klocek.width,klocek.height,samochod.X,samochod.Y_1,klocek.width,klocek.height)    
+     })
+     
+     
+     
+      //########Sprawdzam tablice PUCHARKI i rysuje##########// 
+     
+     Tpuchary.forEach(function(pucharki)//rysuje puchary
+    {
+ctx.drawImage(mapa,pucharki.startX,pucharki.startY,klocek.width,klocek.height,pucharki.X,pucharki.Y,pucharki.width,pucharki.height)   
+     })
+    
+     
+     
+     
+     
+  zaba_rysuje()  //w tym momęcie rysuje żabe 
+ }
+
+ 
+ 
+ 
+ var move=function()//funkcja odpowiedzialna za poruszanie się tratwy i samochodu
+{
+   
+    Ttratwa.forEach(function(tratwa)
+        {
+         if(tratwa.kierunek=="right")
+             {      
+                tratwa.X+=tratwa.velX
+             }
+        if(tratwa.kierunek=="left")
+            {
+             
+            tratwa.X-=tratwa.velX
+            }
+        
+        })
+    
+    Tsamochody.forEach(function(samochod)
+        {
+         if(samochod.kierunek=="right")
+             {      
+                samochod.X+=samochod.velX
+             }
+        if(samochod.kierunek=="left")
+            {
+            samochod.X-=samochod.velX
+            }
+        
+        })
+    
+    
+}
+ 
+ 
+    
+    function background()//sekcja odpowiedzialna za stworzenie tła po wczytaniu obrazka następnie co 60hz
+    {
+//#######################pierwsza linia bez pucharów#################//
+        for(i=0;i<canvas.width/50;i++)
+            {
+ ctx.drawImage(mapa,first_line.startX,first_line.startY,klocek.width,klocek.height,first_line.X,first_line.Y,klocek.width,klocek.height)
+            first_line.X+=klocek.width
+            }
+       first_line.X=0//po narysowaniu wzdłuż wracam do x=0 
+        
+        
+        
+//####################### woda 3 rzędy#################//
+
+    for(a=0;a<3;a++)
+            {
+ ctx.drawImage(mapa,woda.startX,woda.startY,klocek.width,klocek.height,woda.X,woda.Y,klocek.width,klocek.height)
+             
+            for(i=0;i<canvas.width/50;i++)
+                {
+ ctx.drawImage(mapa,woda.startX,woda.startY,klocek.width,klocek.height,woda.X,woda.Y,klocek.width,klocek.height)
+            woda.X+=klocek.width
+                }
+                woda.X=0            
+                woda.Y+=klocek.height 
+                
+                }
+        woda.X=0//po narysowaniu wzdłuż wracam do 0 by przy powtórnej pętli znowu się rysowało
+        woda.Y=klocek.height//po narysowaniu wzdłuż wracam do 0 by przy powtórnej pętli znowu się rysowało
+        
+//####################### trawa 2 rzędy#################//        
+        
+        for(a=0;a<2;a++)
+            {
+ ctx.drawImage(mapa,trawa.startX,trawa.startY,klocek.width,klocek.height,trawa.X,trawa.Y,klocek.width,klocek.height)
+             
+            for(i=0;i<canvas.width/50;i++)
+                {
+ ctx.drawImage(mapa,trawa.startX,trawa.startY,klocek.width,klocek.height,trawa.X,trawa.Y,klocek.width,klocek.height)
+            trawa.X+=klocek.width
+                }
+                trawa.X=0            
+                trawa.Y+=klocek.height 
+                }
+       trawa.X=0//po narysowaniu wzdłuż wracam do 0 by przy powtórnej pętli znowu się rysowało
+        trawa.Y=klocek.height*4//po narysowaniu wzdłuż wracam do 0 by przy powtórnej pętli znowu się rysowało
+        
+        
+        
+  //####################### rząd kostki szrej#################//         
+        for(i=0;i<canvas.width/50;i++)
+            {
+ ctx.drawImage(mapa,kostkaS.startX,kostkaS.startY,klocek.width,klocek.height,kostkaS.X,kostkaS.Y,klocek.width,klocek.height)
+            kostkaS.X+=klocek.width
+            }
+           
+      kostkaS.X=0//po narysowaniu wzdłuż wracam do 0 by przy powtórnej pętli znowu się rysowało
+        kostkaS.Y=klocek.height*6//po narysowaniu wzdłuż wracam do 0 by przy powtórnej pętli znowu się rysowało
+    
+        
+    //####################### szosa 3 rzędy#################//
+
+   for(i=0;i<canvas.width/50;i++)
+            {
+ ctx.drawImage(mapa,szosa.startX_1,szosa.startY,klocek.width,klocek.height,szosa.X,szosa.Y_1,klocek.width,klocek.height)
+            szosa.X+=klocek.width
+                if(szosa.startX_1==150)
+                    {
+             szosa.startX_1=szosa.startX_2
+                    }
+                else
+                    {
+                szosa.startX_1=150 
+                    }
+                
+            }
+    szosa.X=0
+
+        
+        for(i=0;i<canvas.width/50;i++)
+            {
+ ctx.drawImage(mapa,szosa.startX_1,szosa.startY,klocek.width,klocek.height,szosa.X,szosa.Y_2,klocek.width,klocek.height)
+            szosa.X+=klocek.width
+                if(szosa.startX_1==150)
+                    {
+             szosa.startX_1=szosa.startX_3
+                    }
+                else
+                    {
+                szosa.startX_1=150 
+                    }
+                
+            }
+        
+        szosa.X=0
+        
+          for(i=0;i<canvas.width/50;i++)
+            {
+ ctx.drawImage(mapa,szosa.startX_1,szosa.startY,klocek.width,klocek.height,szosa.X,szosa.Y_3,klocek.width,klocek.height)
+            szosa.X+=klocek.width
+                if(szosa.startX_1==150)
+                    {
+             szosa.startX_1=szosa.startX_2
+                    }
+                else
+                    {
+                szosa.startX_1=150 
+                    }
+                
+            }
+    szosa.X=0
+
+        
+        for(i=0;i<canvas.width/50;i++)
+            {
+ ctx.drawImage(mapa,szosa.startX_1,szosa.startY,klocek.width,klocek.height,szosa.X,szosa.Y_4,klocek.width,klocek.height)
+            szosa.X+=klocek.width
+                if(szosa.startX_1==150)
+                    {
+             szosa.startX_1=szosa.startX_3
+                    }
+                else
+                    {
+                szosa.startX_1=150 
+                    }
+                
+            }
+        
+        szosa.X=0
+        
+            
+        szosa.X=0//po narysowaniu wzdłuż wracam do 0 by przy powtórnej pętli znowu się rysowało
+        szosa.Y=0//po narysowaniu wzdłuż wracam do 0 by przy powtórnej pętli znowu się rysowało
+        
+        
+   //####################### kostka na początk#################//     
+        
+        for(a=0;a<3;a++)
+            {
+ ctx.drawImage(mapa,kostkaC.startX,kostkaC.startY,klocek.width,klocek.height,kostkaC.X,kostkaC.Y,klocek.width,klocek.height)
+             
+            for(i=0;i<canvas.width/50;i++)
+                {
+ ctx.drawImage(mapa,kostkaC.startX,kostkaC.startY,klocek.width,klocek.height,kostkaC.X,kostkaC.Y,klocek.width,klocek.height)
+            kostkaC.X+=klocek.width
+                }
+                kostkaC.X=0            
+                kostkaC.Y+=klocek.height 
+                
+                }
+        kostkaC.X=0//po narysowaniu wzdłuż wracam do 0 by przy powtórnej pętli znowu się rysowało
+        kostkaC.Y=klocek.height*11//po narysowaniu wzdłuż wracam do 0 by przy powtórnej pętli znowu się rysowało
+        
+        
+        
+        
+    }
+    
+    function zaba_rysuje()
+    {
+ctx.drawImage(mapa,zaba.startX,zaba.startY,klocek.width,klocek.height,zaba.X,zaba.Y,zaba.zabka_height,zaba.zabka_height)   
+    }
+    
+    var ruch_zaba=function (kierunek)//funkcja nadsuchiwania addeventlistener przekazuje informacje że czas ruszyć się żabą
+    {
+        
+        if(kierunek==37)
+            {
+             zaba.X-=zaba.zabka_height
+            }
+        if(kierunek==38)
+            {
+            zaba.Y-=zaba.zabka_height
+            zapamietanyK=38
+            }
+        if(kierunek==39)
+            {
+            zaba.X+=zaba.zabka_height
+            }
+        if(kierunek==40)
+            {
+            zaba.Y+=zaba.zabka_height
+            }
+    }
+    var kolizje_zaba=function()
+    {
+        
+    //#############kolizja z pucharem#########////////
+        Tpuchary.forEach(function(pucharki,R)//sprawdzanie miejsca pucharków względem żaby
+                        {
+            if(pucharki.X==zaba.X&&pucharki.Y==zaba.Y)//jeżeli żaba jest w idealnym miejscu co puchar
+                {
+                    Tpuchary.splice(R,1)//usuwanie pucharu
+                   delaySAMOCHODY-=200//dodatkowy element dający efekt coraz trudniejszych etapów po zebraniu pucharku
+                    delayTRATWY+=150//dodatkowy element dający efekt coraz trudniejszych etapów po zebraniu pucharku
+                    mnoznik[0]+=0.2//tratwa  math.random*
+                    mnoznik[1]+=0.2//tratwa  math.random+
+                    mnoznik[2]+=0.5//samochody  math.random*
+                    mnoznik[3]+=0.5//samochody  math.random+
+                    reset()//resetuje żabe na swoje miejsce -
+                }
+            
+            
+            
+        })
+        
+        
+ //#############kolizja żaby (pierwszą linią) obok pucharu #########////////
+        if(zaba.Y<50||zaba.Y>canvas.height-zaba.zabka_height||zaba.X>canvas.width-zaba.zabka_width||zaba.X<0)
+            {
+                puchary()//resetuje wszystkie wartości i ustawia od nowa puchary
+                reset()//resetuje żabe
+            }
+        
+        
+        
+        
+        
+        
+//############samochody kolizja z żabą############/////////
+     Tsamochody.forEach(function(samochod)
+        {
+        if(zaba.X+zaba.zabka_width<samochod.X||
+          samochod.X+klocek.width<zaba.X||
+          zaba.Y+zaba.zabka_height-1<samochod.Y_1||
+          samochod.Y_1+klocek.height-1<zaba.Y)//od zdarzeń odejmuje jeden żeby nie wykrywało kolizji gdy żaby Y+height nie był taki sam np.(żaba jest nad pasem pod którym przejezdza samochod)
+        {
+        }
+         else
+             {
+                 puchary()
+        reset()//gdy żaba jest poza tratwą//gdy w żabe trafi samochód
+             }
+        })
+        
+        Ttratwa.forEach(function(tratwa)
+        {
+            sprawdzanie=false
+            if(zaba.Y<200)
+                {
+                if(tratwa.X+klocek.width<zaba.X||
+                  zaba.X+zaba.zabka_width<tratwa.X||
+                  zaba.Y+zaba.zabka_height-1<tratwa.Y_1||
+          tratwa.Y_1+klocek.height-1<tratwa.Y_1) 
+                    {
+                    }
+                    else
+                        {
+                         sprawdzanie=true   
+                        }
+                   if(sprawdzanie==true)
+                       {
+                           pomocnik=true
+                       }
+     
+                }
+        })
+        if(zaba.Y<199&&zaba.Y>51)
+                {
+    
+        if(pomocnik==true)
+        {
+                //gdy żaba jest na tratwie
+        }
+        else
+        {
+        puchary()
+        reset()//gdy żaba jest poza tratwą
+        } 
+                    
+                }
+        pomocnik=false//pomocnik sprawdzający czy napewno w którymś momęcie żaba nie jest po za tratwą
+    }
+   
+    var reset=function()//resetuje wartość żaby
+    {
+        
+         zaba.X=canvas.width-klocek.width
+         zaba.Y=canvas.height-klocek.height
+        
+        
+    }
+   
+    
+    mapa.src="mapa.png"//ładuje mape
+    
+    function play()
+    {
+        background()
+        kolizje_zaba() 
+        rysuje()
+        move()
+        window.requestAnimationFrame(play);
+    }
+    function samochodyfn()
+    {
+    nowysamochod()
+    setTimeout(samochodyfn,delaySAMOCHODY) //rysuje nowy samochod co "delaySAMOCHODY"    
+    }
+    function deskifn()
+    {
+    nowadeska()
+    setTimeout(deskifn,delayTRATWY) //rysuje nowy samochod co "delaySAMOCHODY"
+    }
+    
+    samochodyfn()
+    deskifn()
+    play()
+    puchary()
+   
+    
+    
+
+  
+    
+</script>
+</body>
+</html>
